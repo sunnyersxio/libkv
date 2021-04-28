@@ -1,4 +1,4 @@
-module github.com/rpcxio/libkv
+module github.com/sunnyers/libkv
 
 go 1.15
 
