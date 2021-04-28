@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/sunnyers/libkv/store"
+	"github.com/sunnyersxio/libkv/store"
 	"github.com/stretchr/testify/mock"
 )
 

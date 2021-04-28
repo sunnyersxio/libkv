@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sunnyers/libkv"
-	"github.com/sunnyers/libkv/store"
-	"github.com/sunnyers/libkv/testutils"
+	"github.com/sunnyersxio/libkv"
+	"github.com/sunnyersxio/libkv/store"
+	"github.com/sunnyersxio/libkv/testutils"
 	"github.com/stretchr/testify/assert"
 )
 

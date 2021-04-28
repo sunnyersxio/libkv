@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/sunnyers/libkv"
-	"github.com/sunnyers/libkv/store"
+	"github.com/sunnyersxio/libkv"
+	"github.com/sunnyersxio/libkv/store"
 )
 
 var (

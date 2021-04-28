@@ -9,8 +9,8 @@ import (
 	"time"
 
 	api "github.com/hashicorp/consul/api"
-	"github.com/sunnyers/libkv"
-	"github.com/sunnyers/libkv/store"
+	"github.com/sunnyersxio/libkv"
+	"github.com/sunnyersxio/libkv/store"
 )
 
 const (
