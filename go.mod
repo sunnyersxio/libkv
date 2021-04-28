@@ -11,7 +11,9 @@ require (
 	github.com/hashicorp/go-hclog v0.16.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/pebbe/zmq3 v1.0.4
 	github.com/samuel/go-zookeeper v0.0.0-20201211165307-7117e9ea2414
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
