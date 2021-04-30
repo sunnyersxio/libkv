@@ -197,9 +197,6 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 			// Return children KV pairs to the channel
 			kvpairs := make([]*store.KVPair,0)
 			for _, pair := range pairs {
-				if pair.Key == directory {
-					continue
-				}
 				kvpairs = append(kvpairs, &store.KVPair{
 					Key:       pair.Key,
 					Value:     pair.Value,
