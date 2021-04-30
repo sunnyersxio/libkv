@@ -87,7 +87,7 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 	val := make([]string, 0)
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(key)
-		if err == nil {
+		if err != nil {
 			continue
 		}
 		msg, err := conn.Recv(0)
@@ -103,7 +103,7 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 func (s *Zmq) Put(key string, value []byte, options *store.WriteOptions) error {
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(key)
-		if err == nil {
+		if err != nil {
 			continue
 		}
 		_, err = conn.RecvMessageBytes(0)
