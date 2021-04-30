@@ -137,6 +137,8 @@ func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, e
 	watchCh := make(chan *store.KVPair)
 	go func() {
 		defer close(watchCh)
+		ticker := time.NewTicker(time.Second * 3)
+		
 		
 		// Use a wait time in order to check if we should quit
 		// from time to time.
@@ -145,26 +147,24 @@ func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, e
 			select {
 			case <-stopCh:
 				return
-			default:
-			}
-			
-			// Get the key
-			pair, err := s.Get(key)
-			if err != nil {
-				return
-			}
-			// If LastIndex didn't change then it means `Get` returned
-			// because of the WaitTime and the key didn't changed.
-			
-			
-			// Return the value to the channel
-			// FIXME: What happens when a key is deleted?
-			if pair != nil {
-				watchCh <- &store.KVPair{
-					Key:       pair.Key,
-					Value:     pair.Value,
-					LastIndex: uint64(time.Now().Unix()),
+			case <- ticker.C:
+				// Get the key
+				pair, err := s.Get(key)
+				if err != nil {
+					return
 				}
+				// If LastIndex didn't change then it means `Get` returned
+				// because of the WaitTime and the key didn't changed.
+				// Return the value to the channel
+				// FIXME: What happens when a key is deleted?
+				if pair != nil {
+					watchCh <- &store.KVPair{
+						Key:       pair.Key,
+						Value:     pair.Value,
+						LastIndex: uint64(time.Now().Unix()),
+					}
+				}
+			default:
 			}
 		}
 	}()
@@ -178,7 +178,7 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 	watchCh := make(chan []*store.KVPair)
 	go func() {
 		defer close(watchCh)
-		
+		ticker := time.NewTicker(time.Second * 3)
 		// Use a wait time in order to check if we should quit
 		// from time to time.
 		for {
@@ -186,24 +186,24 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 			select {
 			case <-stopCh:
 				return
+			case <- ticker.C:
+				// Get all the childrens
+				pairs, err := s.List(directory)
+				if err != nil {
+					return
+				}
+				// Return children KV pairs to the channel
+				kvpairs := make([]*store.KVPair,0)
+				for _, pair := range pairs {
+					kvpairs = append(kvpairs, &store.KVPair{
+						Key:       pair.Key,
+						Value:     pair.Value,
+						LastIndex: uint64(time.Now().Unix()),
+					})
+				}
+				watchCh <- kvpairs
 			default:
 			}
-			
-			// Get all the childrens
-			pairs, err := s.List(directory)
-			if err != nil {
-				return
-			}
-			// Return children KV pairs to the channel
-			kvpairs := make([]*store.KVPair,0)
-			for _, pair := range pairs {
-				kvpairs = append(kvpairs, &store.KVPair{
-					Key:       pair.Key,
-					Value:     pair.Value,
-					LastIndex: uint64(time.Now().Unix()),
-				})
-			}
-			watchCh <- kvpairs
 		}
 	}()
 	
