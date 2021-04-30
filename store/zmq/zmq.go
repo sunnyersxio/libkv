@@ -6,6 +6,7 @@ import (
 	zmq "github.com/pebbe/zmq3"
 	"github.com/sunnyersxio/libkv"
 	"github.com/sunnyersxio/libkv/store"
+	"strings"
 	"sync"
 	"time"
 )
@@ -84,7 +85,8 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 // Get the value at "key", returns the last modified index
 // to use in conjunction to CAS calls
 func (s *Zmq) Get(key string) (*store.KVPair, error) {
-	val := make([]string, 0)
+	filter := make(map[string]bool)
+	res := make([]string, 0)
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(key)
 		if err != nil {
@@ -94,9 +96,15 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 		if err != nil {
 			continue
 		}
-		val = append(val, msg)
+		ipList := strings.Split(msg,"|")
+		for _,ip := range ipList[1:] {
+			if _, ok := filter[ip]; !ok {
+				res = append(res, ip)
+				filter[ip] = true
+			}
+		}
 	}
-	js, _ := jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(val)
+	js, _ := jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(res)
 	return &store.KVPair{Key: key, Value: js, LastIndex: uint64(time.Now().Unix())}, nil
 }
 
@@ -126,16 +134,12 @@ func (s *Zmq) Exists(key string) (bool, error) {
 
 // Watch for changes on a key
 func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	pair, err := s.Get(key)
-	if err != nil {
-		return nil, err
-	}
 	watchCh := make(chan *store.KVPair)
 	go func() {
 		defer close(watchCh)
+		
 		// Use a wait time in order to check if we should quit
 		// from time to time.
-		watchCh <- pair
 		for {
 			// Check if we should quit
 			select {
@@ -143,15 +147,70 @@ func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, e
 				return
 			default:
 			}
+			
+			// Get the key
+			pair, err := s.Get(key)
+			if err != nil {
+				return
+			}
+			// If LastIndex didn't change then it means `Get` returned
+			// because of the WaitTime and the key didn't changed.
+			
+			
+			// Return the value to the channel
+			// FIXME: What happens when a key is deleted?
+			if pair != nil {
+				watchCh <- &store.KVPair{
+					Key:       pair.Key,
+					Value:     pair.Value,
+					LastIndex: uint64(time.Now().Unix()),
+				}
+			}
 		}
 	}()
+	
 	return watchCh, nil
 }
 
 // WatchTree watches for changes on child nodes under
 // a given directory
 func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
-	return nil, nil
+	watchCh := make(chan []*store.KVPair)
+	go func() {
+		defer close(watchCh)
+		
+		// Use a wait time in order to check if we should quit
+		// from time to time.
+		for {
+			// Check if we should quit
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+			
+			// Get all the childrens
+			pairs, err := s.List(directory)
+			if err != nil {
+				return
+			}
+			// Return children KV pairs to the channel
+			kvpairs := make([]*store.KVPair,0)
+			for _, pair := range pairs {
+				if pair.Key == directory {
+					continue
+				}
+				kvpairs = append(kvpairs, &store.KVPair{
+					Key:       pair.Key,
+					Value:     pair.Value,
+					LastIndex: uint64(time.Now().Unix()),
+				})
+			}
+			watchCh <- kvpairs
+		}
+	}()
+	
+	return watchCh, nil
 }
 
 // NewLock creates a lock for a given key.
@@ -163,7 +222,26 @@ func (s *Zmq) NewLock(key string, options *store.LockOptions) (store.Locker, err
 
 // List the content of a given prefix
 func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
-	return nil, nil
+	filter := make(map[string]bool)
+	res := make([]*store.KVPair, 0)
+	for _, conn := range s.conn {
+		_, err := conn.SendMessage(directory)
+		if err != nil {
+			continue
+		}
+		msg, err := conn.Recv(0)
+		if err != nil {
+			continue
+		}
+		ipList := strings.Split(msg,"|")
+		for _,ip := range ipList[1:] {
+			if _, ok := filter[ip]; !ok {
+				res = append(res, &store.KVPair{Key: directory, Value: []byte(ip), LastIndex: uint64(time.Now().Unix())})
+				filter[ip] = true
+			}
+		}
+	}
+	return res, nil
 }
 
 // DeleteTree deletes a range of keys under a given directory
