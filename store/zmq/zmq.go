@@ -65,7 +65,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		if err != nil {
 			continue
 		}
-		err = conn.SetRcvtimeo(10000000)
+		err = conn.SetReconnectIvl(10000000)
 		if err != nil {
 			continue
 		}
