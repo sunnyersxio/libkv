@@ -64,14 +64,17 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	for _, v := range endpoints {
 		conn, err := zmq.NewSocket(zmq.REQ)
 		if err != nil {
+			log.Errorf("libKv New conn error %s",err.Error())
 			continue
 		}
 		err = conn.SetReconnectIvl(10000000)
 		if err != nil {
+			log.Errorf("libKv New SetReconnectIvl error %s",err.Error())
 			continue
 		}
 		err = conn.Connect(v)
 		if err != nil {
+			log.Errorf("libKv New Connect error %s",err.Error())
 			continue
 		}
 		s.conn = append(s.conn, conn)
@@ -91,10 +94,12 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(key)
 		if err != nil {
+			log.Errorf("libKv Get SendMessage error %s",err.Error())
 			continue
 		}
 		msg, err := conn.Recv(0)
 		if err != nil {
+			log.Errorf("libKv Get Recv error %s",err.Error())
 			continue
 		}
 		ipList := strings.Split(msg,"|")
@@ -113,10 +118,12 @@ func (s *Zmq) Put(key string, value []byte, options *store.WriteOptions) error {
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(key)
 		if err != nil {
+			log.Errorf("libKv Put SendMessage error %s",err.Error())
 			continue
 		}
 		_, err = conn.RecvMessageBytes(0)
 		if err != nil {
+			log.Errorf("libKv Put RecvMessageBytes error %s",err.Error())
 			continue
 		}
 	}
@@ -201,7 +208,7 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 						Value:     pair.Value,
 						LastIndex: uint64(time.Now().Unix()),
 					})
-					log.Infof("WatchTree kvpairs[%d] is %s %s",k,pair.Key,string(pair.Value))
+					log.Errorf("WatchTree kvpairs[%d] is %s %s",k,pair.Key,string(pair.Value))
 				}
 				watchCh <- kvpairs
 			default:
