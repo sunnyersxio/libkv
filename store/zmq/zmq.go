@@ -41,11 +41,19 @@ var (
 	ErrSessionRenew = errors.New("cannot set or renew session for ttl, unable to operate on sessions")
 )
 
+type msgType struct {
+	ty string
+	key string
+	response chan []string
+}
+
 // Consul is the receiver type for the
 // Store interface
 type Zmq struct {
 	sync.Mutex
 	conn []*zmq.Socket
+	msg chan *msgType
+	stopCh chan struct{}
 }
 
 // Register registers consul to libkv
@@ -60,7 +68,9 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		return nil, ErrMultipleEndpointsUnsupported
 	}
 	var err error
-	s := &Zmq{}
+	s := &Zmq{
+		msg: make(chan *msgType,1000),
+	}
 	for _, v := range endpoints {
 		conn, err := zmq.NewSocket(zmq.REQ)
 		if err != nil {
@@ -79,11 +89,52 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		}
 		s.conn = append(s.conn, conn)
 	}
-	
+	go s.dealMessage()
 	if len(s.conn) == 0 {
 		return nil, err
 	}
 	return s, nil
+}
+
+func (s *Zmq) dealMessage(){
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case sp:= <- s.msg:
+			list := make([]string,0)
+			if sp.key == "GET"{
+				for _, conn := range s.conn {
+					_, err := conn.SendMessage(sp.key)
+					if err != nil {
+						log.Errorf("libKv Get SendMessage error %s", err.Error())
+						continue
+					}
+					msg, err := conn.Recv(0)
+					if err != nil {
+						log.Errorf("libKv Get Recv error %s", err.Error())
+						continue
+					}
+					list = append(list,msg)
+				}
+				sp.response <- list
+			}else{
+				for _, conn := range s.conn {
+					_, err := conn.SendMessage(sp.key)
+					if err != nil {
+						log.Errorf("libKv Put SendMessage error %s",err.Error())
+						continue
+					}
+					_, err = conn.RecvMessageBytes(0)
+					if err != nil {
+						log.Errorf("libKv Put RecvMessageBytes error %s",err.Error())
+						continue
+					}
+				}
+				sp.response <- list
+			}
+		}
+	}
 }
 
 // Get the value at "key", returns the last modified index
@@ -91,17 +142,14 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 func (s *Zmq) Get(key string) (*store.KVPair, error) {
 	filter := make(map[string]bool)
 	res := make([]string, 0)
-	for _, conn := range s.conn {
-		_, err := conn.SendMessage(key)
-		if err != nil {
-			log.Errorf("libKv Get SendMessage error %s",err.Error())
-			continue
-		}
-		msg, err := conn.Recv(0)
-		if err != nil {
-			log.Errorf("libKv Get Recv error %s",err.Error())
-			continue
-		}
+	rsp := &msgType{
+		key: key,
+		response: make(chan []string),
+		ty: "GET",
+	}
+	s.msg <- rsp
+	msgList := <- rsp.response
+	for _,msg := range msgList {
 		ipList := strings.Split(msg,"|")
 		for _,ip := range ipList[1:] {
 			if _, ok := filter[ip]; !ok {
@@ -115,18 +163,13 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 }
 
 func (s *Zmq) Put(key string, value []byte, options *store.WriteOptions) error {
-	for _, conn := range s.conn {
-		_, err := conn.SendMessage(key)
-		if err != nil {
-			log.Errorf("libKv Put SendMessage error %s",err.Error())
-			continue
-		}
-		_, err = conn.RecvMessageBytes(0)
-		if err != nil {
-			log.Errorf("libKv Put RecvMessageBytes error %s",err.Error())
-			continue
-		}
+	rsp := &msgType{
+		key: key,
+		response: make(chan []string),
+		ty: "PUT",
 	}
+	s.msg <- rsp
+	<- rsp.response
 	return nil
 }
 
@@ -146,14 +189,13 @@ func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, e
 	go func() {
 		defer close(watchCh)
 		ticker := time.NewTicker(time.Second * 3)
-		
-		
 		// Use a wait time in order to check if we should quit
 		// from time to time.
 		for {
 			// Check if we should quit
 			select {
 			case <-stopCh:
+				s.stopCh <- struct{}{}
 				return
 			case <- ticker.C:
 				// Get the key
@@ -193,6 +235,7 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 			// Check if we should quit
 			select {
 			case <-stopCh:
+				s.stopCh <- struct{}{}
 				return
 			case <- ticker.C:
 				// Get all the childrens
@@ -230,17 +273,14 @@ func (s *Zmq) NewLock(key string, options *store.LockOptions) (store.Locker, err
 func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 	filter := make(map[string]bool)
 	res := make([]*store.KVPair, 0)
-	for _, conn := range s.conn {
-		_, err := conn.SendMessage(directory)
-		if err != nil {
-			log.Error("libKv List SendMessage error",err.Error())
-			continue
-		}
-		msg, err := conn.Recv(0)
-		if err != nil {
-			log.Error("libKv List Recv error ",err.Error())
-			continue
-		}
+	rsp := &msgType{
+		key: directory,
+		response: make(chan []string),
+		ty: "GET",
+	}
+	s.msg <- rsp
+	msgList := <- rsp.response
+	for _,msg := range msgList {
 		ipList := strings.Split(msg,"|")
 		for _,ip := range ipList[1:] {
 			if _, ok := filter[ip]; !ok {
