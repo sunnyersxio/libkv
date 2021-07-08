@@ -67,7 +67,7 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 			log.Errorf("libKv New conn error %s",err.Error())
 			continue
 		}
-		err = conn.SetReconnectIvl(10000000)
+		err = conn.SetReconnectIvl(10000)
 		if err != nil {
 			log.Errorf("libKv New SetReconnectIvl error %s",err.Error())
 			continue
@@ -233,10 +233,12 @@ func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 	for _, conn := range s.conn {
 		_, err := conn.SendMessage(directory)
 		if err != nil {
+			log.Error("libKv List SendMessage error",err.Error())
 			continue
 		}
 		msg, err := conn.Recv(0)
 		if err != nil {
+			log.Error("libKv List Recv error ",err.Error())
 			continue
 		}
 		ipList := strings.Split(msg,"|")
@@ -247,6 +249,7 @@ func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 			}
 		}
 	}
+	log.Error("libKv List Recv error",res)
 	return res, nil
 }
 
