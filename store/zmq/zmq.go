@@ -103,7 +103,7 @@ func (s *Zmq) dealMessage(){
 			return
 		case sp:= <- s.msg:
 			list := make([]string,0)
-			if sp.key == "GET"{
+			if sp.ty == "GET"{
 				for _, conn := range s.conn {
 					_, err := conn.SendMessage(sp.key)
 					if err != nil {
