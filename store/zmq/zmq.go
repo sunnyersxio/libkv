@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/json-iterator/go"
 	zmq "github.com/pebbe/zmq3"
+	"github.com/prometheus/common/log"
 	"github.com/sunnyersxio/libkv"
 	"github.com/sunnyersxio/libkv/store"
 	"strings"
@@ -194,12 +195,13 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 				}
 				// Return children KV pairs to the channel
 				kvpairs := make([]*store.KVPair,0)
-				for _, pair := range pairs {
+				for k, pair := range pairs {
 					kvpairs = append(kvpairs, &store.KVPair{
 						Key:       pair.Key,
 						Value:     pair.Value,
 						LastIndex: uint64(time.Now().Unix()),
 					})
+					log.Infof("WatchTree kvpairs[%d] is  %#v",k,pair.Key,pair.Value)
 				}
 				watchCh <- kvpairs
 			default:
