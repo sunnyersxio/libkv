@@ -201,7 +201,7 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 						Value:     pair.Value,
 						LastIndex: uint64(time.Now().Unix()),
 					})
-					log.Infof("WatchTree kvpairs[%d] is  %#v",k,pair.Key,pair.Value)
+					log.Infof("WatchTree kvpairs[%d] is  %#v",k,pair.Key,string(pair.Value))
 				}
 				watchCh <- kvpairs
 			default:
