@@ -44,7 +44,7 @@ var (
 type msgType struct {
 	ty string
 	key string
-	response chan []string
+	response chan *[]string
 }
 
 // Consul is the receiver type for the
@@ -89,10 +89,10 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		}
 		s.conn = append(s.conn, conn)
 	}
-	go s.dealMessage()
 	if len(s.conn) == 0 {
 		return nil, err
 	}
+	go s.dealMessage()
 	return s, nil
 }
 
@@ -117,7 +117,7 @@ func (s *Zmq) dealMessage(){
 					}
 					list = append(list,msg)
 				}
-				sp.response <- list
+				sp.response <- &list
 			}else{
 				for _, conn := range s.conn {
 					_, err := conn.SendMessage(sp.key)
@@ -131,7 +131,7 @@ func (s *Zmq) dealMessage(){
 						continue
 					}
 				}
-				sp.response <- list
+				sp.response <- &list
 			}
 		}
 	}
@@ -144,12 +144,12 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 	res := make([]string, 0)
 	rsp := &msgType{
 		key: key,
-		response: make(chan []string),
+		response: make(chan *[]string),
 		ty: "GET",
 	}
 	s.msg <- rsp
 	msgList := <- rsp.response
-	for _,msg := range msgList {
+	for _,msg := range *msgList {
 		ipList := strings.Split(msg,"|")
 		for _,ip := range ipList[1:] {
 			if _, ok := filter[ip]; !ok {
@@ -165,7 +165,7 @@ func (s *Zmq) Get(key string) (*store.KVPair, error) {
 func (s *Zmq) Put(key string, value []byte, options *store.WriteOptions) error {
 	rsp := &msgType{
 		key: key,
-		response: make(chan []string),
+		response: make(chan *[]string),
 		ty: "PUT",
 	}
 	s.msg <- rsp
@@ -275,12 +275,12 @@ func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 	res := make([]*store.KVPair, 0)
 	rsp := &msgType{
 		key: directory,
-		response: make(chan []string),
+		response: make(chan *[]string),
 		ty: "GET",
 	}
 	s.msg <- rsp
 	msgList := <- rsp.response
-	for _,msg := range msgList {
+	for _,msg := range *msgList {
 		ipList := strings.Split(msg,"|")
 		for _,ip := range ipList[1:] {
 			if _, ok := filter[ip]; !ok {
@@ -289,7 +289,7 @@ func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 			}
 		}
 	}
-	log.Error("libKv List Recv error",res)
+	log.Error("libKv List return ",res)
 	return res, nil
 }
 
