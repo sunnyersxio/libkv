@@ -108,12 +108,10 @@ func (s *Zmq) dealMessage(){
 					_, err := conn.SendMessage(sp.key)
 					if err != nil {
 						log.Errorf("libKv Get SendMessage error %s", err.Error())
-						continue
 					}
 					msg, err := conn.Recv(0)
 					if err != nil {
 						log.Errorf("libKv Get Recv error %s", err.Error())
-						continue
 					}
 					list = append(list,msg)
 				}
@@ -123,12 +121,10 @@ func (s *Zmq) dealMessage(){
 					_, err := conn.SendMessage(sp.key)
 					if err != nil {
 						log.Errorf("libKv Put SendMessage error %s",err.Error())
-						continue
 					}
-					_, err = conn.RecvMessageBytes(0)
+					_, err = conn.Recv(0)
 					if err != nil {
 						log.Errorf("libKv Put RecvMessageBytes error %s",err.Error())
-						continue
 					}
 				}
 				sp.response <- &list
