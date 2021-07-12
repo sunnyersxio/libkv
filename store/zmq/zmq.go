@@ -247,7 +247,6 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 						Value:     pair.Value,
 						LastIndex: uint64(time.Now().Unix()),
 					})
-					log.Errorf("WatchTree kvpairs[%d] is %s %s",k,pair.Key,string(pair.Value))
 				}
 				watchCh <- kvpairs
 			default:
@@ -285,7 +284,6 @@ func (s *Zmq) List(directory string) ([]*store.KVPair, error) {
 			}
 		}
 	}
-	log.Error("libKv List return ",res)
 	return res, nil
 }
 
