@@ -210,7 +210,6 @@ func (s *Zmq) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, e
 						LastIndex: uint64(time.Now().Unix()),
 					}
 				}
-			default:
 			}
 		}
 	}()
@@ -249,7 +248,6 @@ func (s *Zmq) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*sto
 					})
 				}
 				watchCh <- kvpairs
-			default:
 			}
 		}
 	}()
